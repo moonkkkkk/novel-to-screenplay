@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>小说转剧本 - Novel to Screenplay</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>📜 小说转剧本</h1>
+    <p class="subtitle">将中文小说章节转换为好莱坞格式 YAML 剧本</p>
+    <p class="tech-note">基于 DeepSeek LLM · 三阶段 Pipeline · R²/HoLLMwood 论文思想</p>
+  </header>
+
+  <main>
+    <!-- 输入区 -->
+    <section class="input-section">
+      <h2>📥 输入小说</h2>
+
+      <div class="form-group">
+        <label for="title">剧本标题</label>
+        <input type="text" id="title" placeholder="如：红楼梦选段" value="测试剧本">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="author">原作者</label>
+          <input type="text" id="author" placeholder="如：曹雪芹" value="未知">
+        </div>
+        <div class="form-group">
+          <label for="genre">类型</label>
+          <select id="genre">
+            <option value="剧情">剧情</option>
+            <option value="喜剧">喜剧</option>
+            <option value="悬疑">悬疑</option>
+            <option value="科幻">科幻</option>
+            <option value="动作">动作</option>
+            <option value="爱情">爱情</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="chapters-container">
+        <div class="chapter-block">
+          <div class="chapter-header">
+            <span>第 1 章</span>
+            <button class="btn-remove-chapter" title="删除此章" onclick="removeChapter(this)">✕</button>
+          </div>
+          <textarea class="chapter-text" placeholder="在此粘贴第 1 章小说内容..." rows="6">天色微明，李寻在客栈二楼醒来。他推开窗户，冷风裹着细雨打在他脸上。
+"又是这个梦。"他揉了揉太阳穴，额头沁出细汗。
+三年前的那场大火——每当他闭上眼睛，那夜的画面就浮现：父亲的书房燃起烈焰，书架轰然倒塌，一个黑影从窗边闪过。
+他握紧拳头。够了，不能再逃了。他拿起桌上的长剑，推门而出。
+客栈老板正趴在柜台后打瞌睡。李寻把几枚铜钱放在桌上："老板，结账。"
+"这、这么早就走？"
+"嗯。去江州。据我所知，那个人就在那里。"</textarea>
+        </div>
+        <div class="chapter-block">
+          <div class="chapter-header">
+            <span>第 2 章</span>
+            <button class="btn-remove-chapter" title="删除此章" onclick="removeChapter(this)">✕</button>
+          </div>
+          <textarea class="chapter-text" placeholder="在此粘贴第 2 章小说内容..." rows="6">江州城外，官道上行人寥寥。李寻骑着一匹瘦马，斗笠压低遮住了半张脸。
+"这位少侠，进城可要小心了。"路边的茶摊老板叫住了他，"最近城里不太平。明月楼的人三天两头来闹事。"
+"明月楼？"
+"武林第一帮派。听说他们的楼主柳如烟武功高深莫测，连朝廷都忌惮三分。"
+李寻没有接话。记忆中父亲那封未寄出的信——"若我遭遇不测，去江州找柳……"信到这里就断了。柳如烟，会是同一个人吗？
+远处传来马蹄声。三匹快马从城内冲出，为首的女子一袭白衣，面纱轻掩。她策马奔过茶摊时，目光扫过李寻，目光冷冽如刀。
+只是一瞬，但那眼神让李寻心头一震——那双眼睛，他在梦里见过。</textarea>
+        </div>
+        <div class="chapter-block">
+          <div class="chapter-header">
+            <span>第 3 章</span>
+            <button class="btn-remove-chapter" title="删除此章" onclick="removeChapter(this)">✕</button>
+          </div>
+          <textarea class="chapter-text" placeholder="在此粘贴第 3 章小说内容..." rows="6">江州城内，暮色渐浓。李寻找了家客栈安顿下来。
+小二端了壶茶推门而入："客官，您的——"
+话音未落，那"小二"从托盘下抽出一把匕首，直刺李寻胸口。李寻侧身避过，反手扣住对方手腕。"谁派你来的？"
+那人冷笑一声："明月楼的柳楼主想见你。不过，是见你的尸体。"
+李寻夺过匕首将他制住。他望了一眼桌上的茶杯——茶色浑浊，显然下了药。
+"柳如烟。"他默念这个名字，心底的疑问越来越深。父亲到底和明月楼有什么关系？为什么他们要杀一个素未谋面的人？
+窗外突然飞入一张纸条，上面只有两个字：
+"快走。"
+李寻不再犹豫，纵身从二楼跃下，消失在夜色中。</textarea>
+        </div>
+      </div>
+
+      <div class="button-row">
+        <button class="btn-add" onclick="addChapter()">＋ 添加章节</button>
+        <span class="hint">至少需要 3 个章节</span>
+      </div>
+
+      <button class="btn-convert" id="btn-convert" onclick="convertNovel()">
+        🎬 转换为剧本
+      </button>
+      <p class="hint" id="convert-hint">约需 30-60 秒，请耐心等待</p>
+    </section>
+
+    <!-- 进度区 -->
+    <section class="progress-section" id="progress-section" style="display:none;">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <p class="progress-text" id="progress-text">准备中...</p>
+    </section>
+
+    <!-- 输出区 -->
+    <section class="output-section" id="output-section" style="display:none;">
+      <div class="output-header">
+        <h2>📤 剧本输出</h2>
+        <div class="output-tabs">
+          <button class="tab active" onclick="switchTab('yaml')">YAML</button>
+          <button class="tab" onclick="switchTab('json')">JSON</button>
+          <button class="tab" onclick="switchTab('report')">
+            检查报告
+            <span class="score-badge" id="score-badge"></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="output-content">
+        <div class="tab-panel active" id="panel-yaml">
+          <div class="output-actions">
+            <button class="btn-copy" onclick="copyOutput('yaml')">📋 复制</button>
+            <button class="btn-download" onclick="downloadOutput('yaml')">⬇ 下载</button>
+          </div>
+          <pre><code id="output-yaml"></code></pre>
+        </div>
+        <div class="tab-panel" id="panel-json">
+          <div class="output-actions">
+            <button class="btn-copy" onclick="copyOutput('json')">📋 复制</button>
+            <button class="btn-download" onclick="downloadOutput('json')">⬇ 下载</button>
+          </div>
+          <pre><code id="output-json"></code></pre>
+        </div>
+        <div class="tab-panel" id="panel-report">
+          <div id="report-content"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 错误区 -->
+    <section class="error-section" id="error-section" style="display:none;">
+      <div class="error-card">
+        <h3>⚠️ 转换失败</h3>
+        <p id="error-message"></p>
+        <button class="btn-retry" onclick="convertNovel()">重试</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Powered by DeepSeek · FastAPI · Pydantic | 借鉴 R² (ICLR 2025) / HoLLMwood (EMNLP 2024) 论文</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
