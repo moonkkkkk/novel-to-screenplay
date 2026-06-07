@@ -41,11 +41,11 @@ class ConvertRequest(BaseModel):
     1. chapters: 手动分好的章节列表
     2. raw_text: 整本小说文本，服务端自动识别章节标题切分
     """
-    chapters: Optional[list[str]] = Field(
-        default=None, description="章节文本列表（手动分章）"
+    chapters: list[str] = Field(
+        default_factory=list, description="章节文本列表（手动分章）"
     )
-    raw_text: Optional[str] = Field(
-        default=None, description="整本小说文本（自动识别章节）"
+    raw_text: str = Field(
+        default="", description="整本小说文本（自动识别章节）"
     )
     title: str = Field(default="未命名剧本", description="剧本标题")
     author: str = Field(default="未知", description="原作者")

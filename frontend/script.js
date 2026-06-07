@@ -90,6 +90,7 @@ async function convertNovel() {
       return;
     }
     body.raw_text = rawText;
+    // 不传 chapters 字段，让 Pydantic 用 default=None
   } else {
     const textareas = document.querySelectorAll('.chapter-text');
     const chapters = [];
@@ -102,6 +103,7 @@ async function convertNovel() {
       return;
     }
     body.chapters = chapters;
+    // 不传 raw_text 字段
   }
 
   // 切换 UI 状态
@@ -121,7 +123,16 @@ async function convertNovel() {
 
     if (!response.ok) {
       const err = await response.json();
-      throw new Error(err.detail || `HTTP ${response.status}`);
+      // FastAPI 422 返回 detail 数组 [{loc, msg, type}, ...]
+      let msg;
+      if (Array.isArray(err.detail)) {
+        msg = err.detail.map(e => `${e.msg} (${e.loc.join('.')})`).join('; ');
+      } else if (typeof err.detail === 'string') {
+        msg = err.detail;
+      } else {
+        msg = JSON.stringify(err);
+      }
+      throw new Error(msg || `HTTP ${response.status}`);
     }
 
     const data = await response.json();
