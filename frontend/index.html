@@ -3,30 +3,37 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>小说转剧本 - Novel to Screenplay</title>
-  <link rel="stylesheet" href="style.css">
+  <title>小说转剧本 — Novel to Screenplay</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=Noto+Serif+SC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
   <header>
-    <h1>📜 小说转剧本</h1>
-    <p class="subtitle">将中文小说章节转换为好莱坞格式 YAML 剧本</p>
-    <p class="tech-note">基于 DeepSeek LLM · 三阶段 Pipeline · R²/HoLLMwood 论文思想</p>
+    <div class="header-inner">
+      <div class="header-mark">N</div>
+      <div>
+        <span class="header-text">小说转剧本</span>
+        <span class="tagline">Novel to Screenplay</span>
+      </div>
+      <div class="header-links">
+        <a href="/static/schema.html">Schema</a>
+        <a href="https://github.com/moonkkkkk/novel-to-screenplay" target="_blank">GitHub</a>
+      </div>
+    </div>
   </header>
 
   <main>
     <!-- 输入区 -->
     <section class="input-section">
-      <h2>📥 输入小说</h2>
-
-      <div class="form-group">
-        <label for="title">剧本标题</label>
-        <input type="text" id="title" placeholder="如：红楼梦选段" value="测试剧本">
-      </div>
+      <h2 class="section-heading">输入小说</h2>
+      <p class="section-desc">支持手动分章或粘贴全文，服务端自动识别章节标题并切分。基于 DeepSeek LLM，三阶段流水线处理。</p>
 
       <div class="form-row">
         <div class="form-group">
-          <label for="author">原作者</label>
-          <input type="text" id="author" placeholder="如：曹雪芹" value="未知">
+          <label for="title">剧本标题</label>
+          <input type="text" id="title" placeholder="如：红楼梦选段" value="测试剧本">
         </div>
         <div class="form-group">
           <label for="genre">类型</label>
@@ -40,12 +47,25 @@
           </select>
         </div>
       </div>
+      <div class="form-group">
+        <label for="author">原作者</label>
+        <input type="text" id="author" placeholder="如：曹雪芹" value="未知">
+      </div>
+
+      <div class="mode-toggle">
+        <button class="mode-btn active" data-mode="manual" onclick="setInputMode('manual')">
+          逐章编辑
+        </button>
+        <button class="mode-btn" data-mode="raw" onclick="setInputMode('raw')">
+          全文粘贴
+        </button>
+      </div>
 
       <div id="chapters-container">
         <div class="chapter-block">
           <div class="chapter-header">
             <span>第 1 章</span>
-            <button class="btn-remove-chapter" title="删除此章" onclick="removeChapter(this)">✕</button>
+            <button class="btn-remove" title="删除此章" onclick="removeChapter(this)">x</button>
           </div>
           <textarea class="chapter-text" placeholder="在此粘贴第 1 章小说内容..." rows="6">天色微明，李寻在客栈二楼醒来。他推开窗户，冷风裹着细雨打在他脸上。
 "又是这个梦。"他揉了揉太阳穴，额头沁出细汗。
@@ -58,7 +78,7 @@
         <div class="chapter-block">
           <div class="chapter-header">
             <span>第 2 章</span>
-            <button class="btn-remove-chapter" title="删除此章" onclick="removeChapter(this)">✕</button>
+            <button class="btn-remove" title="删除此章" onclick="removeChapter(this)">x</button>
           </div>
           <textarea class="chapter-text" placeholder="在此粘贴第 2 章小说内容..." rows="6">江州城外，官道上行人寥寥。李寻骑着一匹瘦马，斗笠压低遮住了半张脸。
 "这位少侠，进城可要小心了。"路边的茶摊老板叫住了他，"最近城里不太平。明月楼的人三天两头来闹事。"
@@ -71,7 +91,7 @@
         <div class="chapter-block">
           <div class="chapter-header">
             <span>第 3 章</span>
-            <button class="btn-remove-chapter" title="删除此章" onclick="removeChapter(this)">✕</button>
+            <button class="btn-remove" title="删除此章" onclick="removeChapter(this)">x</button>
           </div>
           <textarea class="chapter-text" placeholder="在此粘贴第 3 章小说内容..." rows="6">江州城内，暮色渐浓。李寻找了家客栈安顿下来。
 小二端了壶茶推门而入："客官，您的——"
@@ -85,15 +105,19 @@
         </div>
       </div>
 
+      <div id="raw-text-container" style="display:none;">
+        <textarea id="raw-text" class="chapter-text" placeholder="在此粘贴整本小说文本。需包含至少 3 个章节标题（如「第一章」「Chapter 1」），服务端将自动识别并切分。" rows="18"></textarea>
+      </div>
+
       <div class="button-row">
-        <button class="btn-add" onclick="addChapter()">＋ 添加章节</button>
+        <button class="btn-add" onclick="addChapter()">+ 添加章节</button>
         <span class="hint">至少需要 3 个章节</span>
       </div>
 
       <button class="btn-convert" id="btn-convert" onclick="convertNovel()">
-        🎬 转换为剧本
+        转换为剧本
       </button>
-      <p class="hint" id="convert-hint">约需 30-60 秒，请耐心等待</p>
+      <span class="convert-hint">约需 30-60 秒，DeepSeek LLM 处理中</span>
     </section>
 
     <!-- 进度区 -->
@@ -101,16 +125,18 @@
       <div class="progress-bar">
         <div class="progress-fill" id="progress-fill"></div>
       </div>
-      <p class="progress-text" id="progress-text">准备中...</p>
+      <p class="progress-text" id="progress-text">正在连接...</p>
     </section>
 
     <!-- 输出区 -->
     <section class="output-section" id="output-section" style="display:none;">
       <div class="output-header">
-        <h2>📤 剧本输出</h2>
+        <h2>生成结果</h2>
         <div class="output-tabs">
           <button class="tab active" onclick="switchTab('yaml')">YAML</button>
           <button class="tab" onclick="switchTab('json')">JSON</button>
+          <button class="tab" onclick="switchTab('tree')">章节结构</button>
+          <button class="tab" onclick="switchTab('shots')">分镜列表</button>
           <button class="tab" onclick="switchTab('report')">
             检查报告
             <span class="score-badge" id="score-badge"></span>
@@ -121,17 +147,23 @@
       <div class="output-content">
         <div class="tab-panel active" id="panel-yaml">
           <div class="output-actions">
-            <button class="btn-copy" onclick="copyOutput('yaml')">📋 复制</button>
-            <button class="btn-download" onclick="downloadOutput('yaml')">⬇ 下载</button>
+            <button class="btn-action" onclick="copyOutput('yaml')">Copy</button>
+            <button class="btn-action" onclick="downloadOutput('yaml')">Download .yaml</button>
           </div>
           <pre><code id="output-yaml"></code></pre>
         </div>
         <div class="tab-panel" id="panel-json">
           <div class="output-actions">
-            <button class="btn-copy" onclick="copyOutput('json')">📋 复制</button>
-            <button class="btn-download" onclick="downloadOutput('json')">⬇ 下载</button>
+            <button class="btn-action" onclick="copyOutput('json')">Copy</button>
+            <button class="btn-action" onclick="downloadOutput('json')">Download .json</button>
           </div>
           <pre><code id="output-json"></code></pre>
+        </div>
+        <div class="tab-panel" id="panel-tree">
+          <div id="tree-content"></div>
+        </div>
+        <div class="tab-panel" id="panel-shots">
+          <div id="shots-content"></div>
         </div>
         <div class="tab-panel" id="panel-report">
           <div id="report-content"></div>
@@ -142,17 +174,17 @@
     <!-- 错误区 -->
     <section class="error-section" id="error-section" style="display:none;">
       <div class="error-card">
-        <h3>⚠️ 转换失败</h3>
+        <h3>转换失败</h3>
         <p id="error-message"></p>
-        <button class="btn-retry" onclick="convertNovel()">重试</button>
+        <button class="btn-retry" onclick="convertNovel()">Retry</button>
       </div>
     </section>
   </main>
 
   <footer>
-    <p>Powered by DeepSeek · FastAPI · Pydantic | 借鉴 R² (ICLR 2025) / HoLLMwood (EMNLP 2024) 论文</p>
+    Powered by DeepSeek &middot; FastAPI &middot; Pydantic
   </footer>
 
-  <script src="script.js"></script>
+  <script src="/static/script.js"></script>
 </body>
 </html>
