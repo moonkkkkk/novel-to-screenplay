@@ -103,7 +103,7 @@ EXTRACTION_USER_TEMPLATE = """请分析以下小说第{chapter_num}章，提取�
 请按以下JSON格式输出：
 {{
   "characters": [
-    {{"name": "角色名", "description": "简要描述", "age_range": "年龄区间（可省略）"}}
+    {{"id": "角色拼音ID（如 zhang_san）", "name": "角色名", "description": "简要描述", "age_range": "年龄区间（可省略）"}}
   ],
   "key_events": [
     {{

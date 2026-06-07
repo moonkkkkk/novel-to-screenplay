@@ -167,7 +167,11 @@ class NovelToScriptPipeline:
             content = response.choices[0].message.content or "{}"
             data = _extract_json(content)
 
-            chars = [Character(**c) for c in data.get("characters", [])]
+            chars_raw = data.get("characters", [])
+            for c in chars_raw:
+                if "id" not in c:
+                    c["id"] = c.get("name", f"char_{i}")
+            chars = [Character(**c) for c in chars_raw]
             events = [ExtractedEvent(**e) for e in data.get("key_events", [])]
             locations = data.get("setting_locations", [])
 
