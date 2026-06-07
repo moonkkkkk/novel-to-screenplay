@@ -289,14 +289,38 @@ FAITHFULNESS_USER_TEMPLATE = """请对比以下原著内容和生成剧本，检
 ## 原著情节摘要
 {original_summary}
 
-## 生成的剧本
+## 生成的剧本（Script → Chapter → Scene → Beat 四级层级）
 {script_yaml}
+
+## 检查项
+
+### 情节忠实度
+1. 是否有原著中根本不存在的情节？（幻觉检测）
+2. 关键事件是否在剧本中得到了体现？
+3. 事件顺序是否合理？
+
+### 角色忠实度
+4. 角色性格和行为是否与原著一致？
+5. 角色间关系是否正确还原？
+6. 是否凭空添加了原著不存在的角色？
+
+### Beat 级别检查
+7. action Beat 的动作描写是否忠实于原著？
+8. dialogue Beat 的对白是否自然且符合角色性格？
+9. narration Beat 的旁白/环境描写是否过度发挥？
+10. transition Beat 的转场是否合理？
+
+### 分镜建议检查
+11. shot_suggestion 的 camera_hint 是否匹配 Beat 内容？
+12. shot_suggestion 的 emotion 是否与场景情绪一致？
+13. shot_suggestion 的 sound_hint 是否合适？
 
 请按以下JSON格式输出检查报告：
 {{
   "overall_score": 0.0,
   "character_consistency": 0.0,
   "plot_accuracy": 0.0,
+  "beat_quality": 0.0,
   "hallucinated_plots": ["原著不存在的情节"],
   "character_issues": ["角色一致性问题"],
   "suggestions": ["修正建议"]

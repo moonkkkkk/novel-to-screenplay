@@ -49,7 +49,15 @@ def llm_faithfulness_check(
     # 1. 先做硬规则检查
     hard_violations = validate_script_hard_rules(script)
 
-    # 2. LLM 软检查
+    # 2. LLM 软检查 — 摘要附加结构统计
+    summary_with_stats = original_summary
+    if script:
+        summary_with_stats += (
+            f"\n\n剧本结构统计：{script.chapter_count}章, "
+            f"{script.scene_count}个场景, {script.beat_count}个分镜, "
+            f"{len(script.characters)}个角色"
+        )
+
     config = get_llm_config()
     script_yaml = script_to_yaml(script)
 
@@ -61,7 +69,7 @@ def llm_faithfulness_check(
                 {
                     "role": "user",
                     "content": FAITHFULNESS_USER_TEMPLATE.format(
-                        original_summary=original_summary,
+                        original_summary=summary_with_stats,
                         script_yaml=script_yaml,
                     ),
                 },
@@ -93,13 +101,15 @@ def llm_faithfulness_check(
     return report
 
 
-def generate_faithfulness_summary(original_chapters: list[str]) -> str:
+def generate_faithfulness_summary(original_chapters: list[str], script: Script | None = None) -> str:
     """为忠实度检查生成原著摘要。
 
     简单策略：取每章前500字拼接，足够LLM做对比。
+    可选包含剧本结构统计。
 
     Args:
         original_chapters: 原始章节文本列表
+        script: 生成的剧本（可选，用于附加结构统计）
 
     Returns:
         摘要文本
@@ -112,6 +122,14 @@ def generate_faithfulness_summary(original_chapters: list[str]) -> str:
         parts.append(f"第{i}章开头: {head}")
         if tail:
             parts.append(f"第{i}章结尾: {tail}")
+
+    # 附加剧本结构统计
+    if script:
+        parts.append(
+            f"\n剧本结构统计：{script.chapter_count}章, "
+            f"{script.scene_count}个场景, {script.beat_count}个分镜, "
+            f"{len(script.characters)}个角色"
+        )
 
     return "\n\n".join(parts)
 

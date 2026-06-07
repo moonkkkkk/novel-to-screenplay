@@ -253,6 +253,7 @@ class FaithfulnessReport(BaseModel):
     overall_score: float = Field(..., description="综合忠实度 0-1")
     character_consistency: float = Field(default=1.0, description="角色一致性")
     plot_accuracy: float = Field(default=1.0, description="情节准确度")
+    beat_quality: float = Field(default=1.0, description="分镜质量（Beat 级别）")
     hallucinated_plots: list[str] = Field(default_factory=list, description="疑似幻觉的情节")
     character_issues: list[str] = Field(default_factory=list, description="角色一致性问题")
     suggestions: list[str] = Field(default_factory=list, description="修正建议")
