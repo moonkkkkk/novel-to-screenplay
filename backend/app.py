@@ -1,11 +1,14 @@
 """FastAPI 主程序：小说转剧本 API 服务。"""
 
+import os
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from .chapter_parser import parse_chapters_simple
 from .models import Script
 from .pipeline import NovelToScriptPipeline
 from .yaml_utils import script_to_yaml, validate_script_hard_rules
@@ -25,14 +28,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 前端静态文件
+FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
+if os.path.isdir(FRONTEND_DIR):
+    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="frontend")
 
 # ─── 请求/响应模型 ──────────────────────────────────────────────
 
 
 class ConvertRequest(BaseModel):
-    """转换请求"""
-    chapters: list[str] = Field(
-        ..., min_length=3, description="章节文本列表（至少 3 章）"
+    """转换请求 — 支持两种输入模式：
+    1. chapters: 手动分好的章节列表
+    2. raw_text: 整本小说文本，服务端自动识别章节标题切分
+    """
+    chapters: Optional[list[str]] = Field(
+        default=None, description="章节文本列表（手动分章）"
+    )
+    raw_text: Optional[str] = Field(
+        default=None, description="整本小说文本（自动识别章节）"
     )
     title: str = Field(default="未命名剧本", description="剧本标题")
     author: str = Field(default="未知", description="原作者")
@@ -59,28 +72,44 @@ class ConvertResponse(BaseModel):
 
 @app.get("/")
 async def root():
-    """健康检查"""
-    return {
-        "service": "小说转剧本 API",
-        "version": "1.0.0",
-        "status": "running",
-    }
+    """前端主页"""
+    index_path = os.path.join(FRONTEND_DIR, "index.html")
+    if os.path.isfile(index_path):
+        return FileResponse(index_path)
+    return {"service": "小说转剧本 API", "version": "1.0.0", "status": "running"}
 
 
 @app.post("/convert", response_model=ConvertResponse)
 async def convert_novel(request: ConvertRequest):
-    """将小说章节转换为剧本。
+    """将小说转换为剧本。
 
-    接收 3+ 章小说文本，返回 YAML 格式的剧本。
+    支持两种输入模式：
+    - chapters: 手动分好的章节列表
+    - raw_text: 整本小说文本，服务端自动识别章节切分
+
     内部执行三阶段流水线：提取 → 汇总 → 生成。
     """
     try:
+        # 确定章节列表
+        if request.raw_text and request.raw_text.strip():
+            chapters = parse_chapters_simple(request.raw_text)
+        elif request.chapters:
+            chapters = [c for c in request.chapters if c and c.strip()]
+        else:
+            raise ValueError("请提供 chapters（章节列表）或 raw_text（整本小说文本）")
+
+        if len(chapters) < 3:
+            raise ValueError(
+                f"需要至少 3 个章节，当前只识别到 {len(chapters)} 章。"
+                "请检查文本是否包含章节标题（如'第一章'或'Chapter 1'）"
+            )
+
         # 初始化 Pipeline（每次请求新建实例，避免状态污染）
         pipeline = NovelToScriptPipeline()
 
         # 执行转换
         script, report = pipeline.run(
-            chapters=request.chapters,
+            chapters=chapters,
             title=request.title,
             author=request.author,
             genre=request.genre,

@@ -8,7 +8,10 @@
  * - 复制、下载输出结果
  */
 
-const API_BASE = window.location.origin;
+// file:// 协议下 origin 为 null，回退到 localhost:8000
+const API_BASE = window.location.origin && window.location.origin !== 'null'
+  ? window.location.origin
+  : 'http://localhost:8000';
 
 // ── 章节管理 ──────────────────────────────────────────────────
 
