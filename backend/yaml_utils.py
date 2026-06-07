@@ -62,6 +62,10 @@ def extract_yaml_from_text(content: str) -> str:
 def parse_script_yaml(yaml_text: str) -> Script:
     """解析 YAML 文本为 Script 模型。
 
+    支持两种格式：
+    1. 新层级：chapters[].scenes[].beats[]
+    2. 向后兼容：scenes[].actions[].dialogues[]
+
     Args:
         yaml_text: YAML 文本
 
@@ -88,9 +92,9 @@ def parse_script_yaml(yaml_text: str) -> Script:
     if "characters" not in data:
         data["characters"] = []
 
-    # 确保 scenes 存在
-    if "scenes" not in data:
-        data["scenes"] = []
+    # 确保 chapters 或 scenes 存在
+    if "chapters" not in data and "scenes" not in data:
+        data["chapters"] = []
 
     return Script(**data)
 
@@ -99,9 +103,13 @@ def validate_script_hard_rules(script: Script) -> list[str]:
     """硬规则校验剧本，返回违规列表。
 
     规则：
-    1. 角色ID交叉检查：dialogues 和 characters_in_scene 中的角色必须在 characters 列表中
-    2. 场景ID连续性检查
-    3. 关键角色覆盖检查
+    1. 角色ID交叉检查：beats 和 characters_in_scene 中的角色必须在 characters 列表中
+    2. 章节ID连续性检查
+    3. Scene ID 连续性检查（每个 Chapter 内）
+    4. Beat ID 连续性检查（每个 Scene 内）
+    5. 关键角色覆盖检查
+    6. Beat type 合法性检查
+    7. action/dialogue Beat 必须标注 character
 
     Args:
         script: 剧本对象
@@ -113,9 +121,13 @@ def validate_script_hard_rules(script: Script) -> list[str]:
 
     # 收集所有已定义的角色ID
     defined_ids: set[str] = {c.id for c in script.characters}
+    valid_beat_types = {"action", "dialogue", "narration", "transition"}
+
+    # 使用 all_scenes() 兼容新旧层级
+    scenes = script.all_scenes()
 
     # 规则1: 角色ID交叉检查
-    for scene in script.scenes:
+    for scene in scenes:
         # 检查 characters_in_scene
         for cid in scene.characters_in_scene:
             if cid not in defined_ids:
@@ -123,29 +135,74 @@ def validate_script_hard_rules(script: Script) -> list[str]:
                     f"场景 {scene.id}: characters_in_scene 中的 '{cid}' 未在 characters 列表中定义"
                 )
 
-        # 检查 dialogues
+        # 检查 beats 中的角色
+        for beat in scene.beats:
+            if beat.character and beat.character not in defined_ids:
+                violations.append(
+                    f"场景 {scene.id} Beat {beat.id}: character '{beat.character}' 未在 characters 列表中定义"
+                )
+
+        # 向后兼容：检查旧 dialogues
         for dialogue in scene.dialogues:
             if dialogue.character not in defined_ids:
                 violations.append(
                     f"场景 {scene.id}: dialogue 角色 '{dialogue.character}' 未在 characters 列表中定义"
                 )
 
-    # 规则2: 场景ID连续性
-    scene_ids = sorted([s.id for s in script.scenes])
-    expected_ids = list(range(1, len(scene_ids) + 1))
-    if scene_ids != expected_ids:
-        violations.append(
-            f"场景ID不连续：期望 {expected_ids}，实际 {scene_ids}"
-        )
+    # 规则2: 章节ID连续性（如果有 chapters）
+    if script.chapters:
+        chapter_ids = sorted([ch.id for ch in script.chapters])
+        expected_ch_ids = list(range(1, len(chapter_ids) + 1))
+        if chapter_ids != expected_ch_ids:
+            violations.append(
+                f"章节ID不连续：期望 {expected_ch_ids}，实际 {chapter_ids}"
+            )
 
-    # 规则3: 关键角色（importance_score > 0.5）必须在至少一个场景中出现
+    # 规则3: 场景ID连续性（每个 Chapter 内）
+    for chapter in script.chapters:
+        if chapter.scenes:
+            scene_ids = sorted([s.id for s in chapter.scenes])
+            expected_s_ids = list(range(1, len(scene_ids) + 1))
+            if scene_ids != expected_s_ids:
+                violations.append(
+                    f"第{chapter.id}章：场景ID不连续，期望 {expected_s_ids}，实际 {scene_ids}"
+                )
+
+    # 规则4: Beat ID 连续性 + type/character 检查（每个 Scene 内）
+    for scene in scenes:
+        if scene.beats:
+            beat_ids = sorted([b.id for b in scene.beats])
+            expected_b_ids = list(range(1, len(beat_ids) + 1))
+            if beat_ids != expected_b_ids:
+                violations.append(
+                    f"场景 {scene.id}: Beat ID 不连续，期望 {expected_b_ids}，实际 {beat_ids}"
+                )
+
+            for beat in scene.beats:
+                # 规则6: Beat type 合法性
+                if beat.type.value not in valid_beat_types:
+                    violations.append(
+                        f"场景 {scene.id} Beat {beat.id}: 无效的 Beat type '{beat.type.value}'"
+                    )
+
+                # 规则7: action/dialogue 必须标注 character
+                if beat.type.value in ("action", "dialogue"):
+                    if not beat.character:
+                        violations.append(
+                            f"场景 {scene.id} Beat {beat.id}: '{beat.type.value}' 类型必须标注 character 字段"
+                        )
+
+    # 规则5: 关键角色（importance_score > 0.5）必须在至少一个场景中出现
     key_characters = [
         c for c in script.characters
         if c.importance_score and c.importance_score > 0.5
     ]
     all_scene_characters: set[str] = set()
-    for scene in script.scenes:
+    for scene in scenes:
         all_scene_characters.update(scene.characters_in_scene)
+        for beat in scene.beats:
+            if beat.character:
+                all_scene_characters.add(beat.character)
         for dialogue in scene.dialogues:
             all_scene_characters.add(dialogue.character)
 
@@ -169,8 +226,8 @@ def script_to_yaml(script: Script) -> str:
     Returns:
         格式化的 YAML 字符串
     """
-    # Pydantic model_dump 转换为字典
-    data = script.model_dump(exclude_none=True, mode="python")
+    # Pydantic model_dump 转换为字典（mode="json" 避免 Enum 标签）
+    data = script.model_dump(exclude_none=True, mode="json")
 
     # 使用 pyyaml 序列化
     return yaml.dump(
@@ -193,7 +250,7 @@ def get_script_json(script: Script) -> str:
         格式化的 JSON 字符串
     """
     return json.dumps(
-        script.model_dump(exclude_none=True, mode="python"),
+        script.model_dump(exclude_none=True, mode="json"),
         ensure_ascii=False,
         indent=2,
     )

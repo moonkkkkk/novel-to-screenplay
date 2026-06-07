@@ -165,6 +165,7 @@ EXTRACTION_USER_TEMPLATE = """请分析以下小说第{chapter_num}章，提取�
 
 请按以下JSON格式输出：
 {{
+  "chapter_title": "本章标题（从原文自动识别，如 第一章 初入江湖）",
   "characters": [
     {{"id": "角色拼音ID（如 zhang_san）", "name": "角色名", "description": "简要描述", "age_range": "年龄区间（可省略）"}}
   ],
@@ -179,6 +180,7 @@ EXTRACTION_USER_TEMPLATE = """请分析以下小说第{chapter_num}章，提取�
 }}
 
 注意：
+- chapter_title 从章节首行标题自动识别（如"第一章 初入江湖"），若无标题则根据内容概括
 - 只提取本章新出现的或重点描写的角色
 - 事件控制在3-8条，按发生顺序排列
 - timeline_hint 默认为 "present"，除非明确有倒叙/插叙提示
@@ -235,6 +237,9 @@ GENERATION_USER_TEMPLATE = """请基于以下角色表和事件线，生成YAML�
 - 标题：{title}
 - 原作者：{author}
 - 类型：{genre}
+
+## 章节标题表（按此结构组织 chapters）
+{chapter_titles_json}
 
 ## 角色表
 {characters_json}

@@ -123,7 +123,12 @@ class NovelToScriptPipeline:
         )
 
         # Stage 3: 剧本生成（含容错重试）
-        script = self._stage3_generate(merged, title, author, genre)
+        # 构建章节标题列表
+        chapter_titles = [
+            {"id": e.chapter_index, "title": e.chapter_title or f"第{e.chapter_index}章"}
+            for e in extractions
+        ]
+        script = self._stage3_generate(merged, chapter_titles, title, author, genre)
         logger.info(f"Stage 3: {len(script.scenes)} scenes generated")
 
         # 硬规则忠实度检查
@@ -175,9 +180,12 @@ class NovelToScriptPipeline:
             events = [ExtractedEvent(**e) for e in data.get("key_events", [])]
             locations = data.get("setting_locations", [])
 
+            chapter_title = data.get("chapter_title") or f"第{i}章"
+
             extractions.append(
                 ChapterExtraction(
                     chapter_index=i,
+                    chapter_title=chapter_title,
                     characters=chars,
                     key_events=events,
                     setting_locations=locations,
@@ -224,7 +232,7 @@ class NovelToScriptPipeline:
     # ── Stage 3: 剧本生成（含容错重试）──────────────────────────
 
     def _stage3_generate(
-        self, merged: MergedData, title: str, author: str, genre: str
+        self, merged: MergedData, chapter_titles: list[dict], title: str, author: str, genre: str
     ) -> Script:
         """基于汇总数据生成剧本 YAML，失败时自动重试。
 
@@ -240,6 +248,7 @@ class NovelToScriptPipeline:
             ensure_ascii=False,
             indent=2,
         )
+        chapter_titles_json = json.dumps(chapter_titles, ensure_ascii=False, indent=2)
         locations_str = (
             ", ".join(merged.locations) if merged.locations else "由AI根据事件推断"
         )
@@ -253,6 +262,7 @@ class NovelToScriptPipeline:
                     title=title,
                     author=author,
                     genre=genre,
+                    chapter_titles_json=chapter_titles_json,
                     characters_json=characters_json,
                     events_json=events_json,
                     locations=locations_str,
