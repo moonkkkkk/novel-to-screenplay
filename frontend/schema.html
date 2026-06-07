@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Schema — 小说转剧本</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=Noto+Serif+SC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .schema-page { max-width: 960px; margin: 0 auto; padding: 32px 24px 80px; }
+
+    .page-hero {
+      margin-bottom: 40px;
+    }
+
+    .page-hero h1 {
+      font-family: var(--font-display);
+      font-size: 2.5rem;
+      font-weight: 500;
+      letter-spacing: -0.03em;
+      color: var(--ink-strong);
+      line-height: 1.15;
+      margin-bottom: 8px;
+    }
+
+    .page-hero .sub {
+      font-size: var(--text-base);
+      color: var(--ink-muted);
+      max-width: 60ch;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .btn-hero {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 20px;
+      border-radius: var(--r-md);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      font-family: var(--font-ui);
+      cursor: pointer;
+      transition: all .15s;
+      border: 1px solid var(--border);
+      background: var(--surface-card);
+      color: var(--ink-soft);
+    }
+
+    .btn-hero:hover { border-color: var(--ink-dim); color: var(--ink); }
+
+    .btn-hero.primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .btn-hero.primary:hover { background: var(--accent-hover); }
+
+    .toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface-dark);
+      color: #d4d0c8;
+      padding: 10px 24px;
+      border-radius: var(--r-pill);
+      font-size: var(--text-sm);
+      font-family: var(--font-ui);
+      opacity: 0;
+      transition: opacity .25s;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .toast.show { opacity: 1; }
+
+    /* Section cards */
+
+    .schema-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .schema-card summary {
+      padding: 18px 24px;
+      cursor: pointer;
+      font-family: var(--font-display);
+      font-size: var(--text-xl);
+      font-weight: 500;
+      letter-spacing: -0.015em;
+      color: var(--ink-strong);
+      user-select: none;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .schema-card summary::before {
+      content: "+";
+      font-family: var(--font-mono);
+      font-size: 14px;
+      color: var(--accent);
+      width: 18px;
+      flex-shrink: 0;
+    }
+
+    .schema-card[open] summary::before { content: "\2212"; }
+
+    .schema-card summary:hover { background: var(--canvas); }
+
+    .card-body { padding: 0 24px 22px; }
+
+    /* Field table */
+
+    .field-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--text-sm);
+      margin: 12px 0;
+    }
+
+    .field-table th {
+      background: var(--canvas);
+      padding: 9px 14px;
+      text-align: left;
+      font-weight: 600;
+      font-size: var(--text-xs);
+      color: var(--ink-muted);
+      border-bottom: 1px solid var(--border);
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .field-table td {
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .field-table tbody tr:last-child td { border-bottom: none; }
+
+    .field-table .field-name {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--ink-strong);
+      white-space: nowrap;
+    }
+
+    .field-table .field-type {
+      font-size: 11px;
+      color: var(--accent);
+      white-space: nowrap;
+    }
+
+    .field-table .field-desc { color: var(--ink-soft); }
+
+    .field-table .field-note {
+      font-size: var(--text-xs);
+      color: var(--ink-dim);
+      font-style: italic;
+    }
+
+    .required-badge {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: var(--r-pill);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .optional-badge {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: var(--r-pill);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: var(--canvas);
+      color: var(--ink-dim);
+    }
+
+    /* YAML sample */
+
+    .yaml-sample {
+      background: var(--surface-dark);
+      border: 1px solid #2a2824;
+      border-radius: var(--r-lg);
+      padding: 22px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.65;
+      color: #d4d0c8;
+      overflow-x: auto;
+      max-height: 600px;
+      overflow-y: auto;
+      white-space: pre;
+    }
+
+    .yaml-sample .key { color: #e8a55a; }
+    .yaml-sample .val { color: #5db8a6; }
+    .yaml-sample .comment { color: #6c6a64; }
+
+    /* Enum tags */
+
+    .enum-tag {
+      display: inline-block;
+      font-size: 10px;
+      padding: 1px 7px;
+      border-radius: var(--r-pill);
+      font-weight: 500;
+      font-family: var(--font-mono);
+      background: var(--canvas);
+      color: var(--ink-muted);
+      margin-right: 3px;
+    }
+
+    /* Design rationale */
+
+    .rationale {
+      background: var(--canvas);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 16px 20px;
+      margin-top: 14px;
+      font-size: var(--text-sm);
+      color: var(--ink-muted);
+      line-height: 1.7;
+    }
+
+    .rationale strong { color: var(--ink-soft); }
+
+    /* Responsive */
+
+    @media (max-width: 640px) {
+      .page-hero h1 { font-size: 1.75rem; }
+      .hero-actions { flex-direction: column; }
+      .schema-card summary { padding: 14px 18px; font-size: var(--text-lg); }
+      .card-body { padding: 0 14px 16px; }
+      .field-table th, .field-table td { padding: 7px 10px; }
+      .yaml-sample { padding: 14px; font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <a href="/" class="header-mark" style="text-decoration:none;">N</a>
+      <div>
+        <span class="header-text">Schema 文档</span>
+        <span class="tagline">YAML Data Model Reference</span>
+      </div>
+      <div class="header-links">
+        <a href="/">Home</a>
+        <a href="https://github.com/moonkkkkk/novel-to-screenplay" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="schema-page">
+
+    <!-- Hero -->
+    <div class="page-hero">
+      <h1>剧本 YAML Schema</h1>
+      <p class="sub">
+        四级层级：Script &rarr; Chapter &rarr; Scene &rarr; Beat。
+        全文共 14 个模型，每个 Beat 附带分镜建议（镜头/声音/情绪）。
+      </p>
+      <div class="hero-actions">
+        <button class="btn-hero primary" onclick="copySchema()">Copy YAML</button>
+        <button class="btn-hero" onclick="downloadSchema()">Download .yaml</button>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Script -->
+    <details class="schema-card" open>
+      <summary>Script &mdash; 完整剧本</summary>
+      <div class="card-body">
+        <table class="field-table">
+          <thead>
+            <tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="field-name">version</td>
+              <td class="field-type">str</td>
+              <td><span class="required-badge">必填</span></td>
+              <td class="field-desc">Schema 版本号，当前为 "1.0"</td>
+            </tr>
+            <tr>
+              <td class="field-name">metadata</td>
+              <td class="field-type">ScriptMetadata</td>
+              <td><span class="required-badge">必填</span></td>
+              <td class="field-desc">元信息：标题、原作者、改编者、一句话梗概、类型</td>
+            </tr>
+            <tr>
+              <td class="field-name">characters</td>
+              <td class="field-type">list[Character]</td>
+              <td><span class="optional-badge">可选</span></td>
+              <td class="field-desc">角色列表</td>
+            </tr>
+            <tr>
+              <td class="field-name">chapters</td>
+              <td class="field-type">list[Chapter]</td>
+              <td><span class="optional-badge">可选</span></td>
+              <td class="field-desc">章节列表（推荐）。如不提供则回退到 scenes[] 扁平模式</td>
+            </tr>
+            <tr>
+              <td class="field-name">scenes</td>
+              <td class="field-type">list[Scene]</td>
+              <td><span class="optional-badge">可选</span></td>
+              <td class="field-desc">向后兼容：旧 API 扁平场景列表</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="rationale">
+          <strong>设计原因：</strong>Script 同时支持 chapters[] 和 scenes[] 两种顶层结构。
+          新项目推荐使用 chapters[] 四级层级，旧项目 scenes[] 依然可用。
+          通过 <code>all_scenes()</code> 和 <code>all_beats()</code> 方法统一访问。
+        </div>
+      </div>
+    </details>
+
+    <!-- ScriptMetadata -->
+    <details class="schema-card">
+      <summary>ScriptMetadata &mdash; 剧本元信息</summary>
+      <div class="card-body">
+        <table class="field-table">
+          <thead>
+            <tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="field-name">title</td><td class="field-type">str</td>
+              <td><span class="required-badge">必填</span></td>
+              <td class="field-desc">剧本标题</td>
+            </tr>
+            <tr>
+              <td class="field-name">author</td><td class="field-type">str</td>
+              <td><span class="required-badge">必填</span></td>
+              <td class="field-desc">原作者</td>
+            </tr>
+            <tr>
+              <td class="field-name">adapted_by</td><td class="field-type">str</td>
+              <td><span class="optional-badge">可选</span></td>
+              <td class="field-desc">改编者</td>
+            </tr>
+            <tr>
+              <td class="field-name">logline</td><td class="field-type">str</td>
+              <td><span class="required-badge">必填</span></td>
+              <td class="field-desc">一句话梗概，≤50 字</td>
+            </tr>
+            <tr>
+              <td class="field-name">genre</td><td class="field-type">str</td>
+              <td><span class="required-badge">必填</span></td>
+              <td class="field-desc">
+                类型：
+                <span class="enum-tag">剧情</span>
+                <span class="enum-tag">喜剧</span>
+                <span class="enum-tag">悬疑</span>
+                <span class="enum-tag">科幻</span>
+                <span class="enum-tag">动作</span>
+                <span class="enum-tag">爱情</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="field-name">page_count</td><td class="field-type">int</td>
+              <td><span class="optional-badge">可选</span></td>
+              <td class="field-desc">预估页数</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- Chapter -->
+    <details class="schema-card">
+      <summary>Chapter &mdash; 章节</summary>
+      <div class="card-body">
+        <table class="field-table">
+          <thead>
+            <tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="field-name">id</td><td class="field-type">int</td>
+              <td><span class="required-badge">必填</span></td>
+              <td class="field-desc">章节序号，从 1 开始</td>
+            </tr>
+            <tr>
+              <td class="field-name">title</td><td class="field-type">str</td>
+              <td><span class="required-badge">必填</span></td>
+              <td class="field-desc">章节标题，如 "第一章 初入江湖"</td>
+            </tr>
+            <tr>
+              <td class="field-name">summary</td><td class="field-type">str</td>
+              <td><span class="optional-badge">可选</span></td>
+              <td class="field-desc">章节内容摘要</td>
+            </tr>
+            <tr>
+              <td class="field-name">scenes</td><td class="field-type">list[Scene]</td>
+              <td><span class="optional-badge">可选</span></td>
+              <td class="field-desc">本章场景列表</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="rationale">
+          <strong>设计原因：</strong>Chapter 对应原小说的自然分章边界，每章包含若干场景。
+          chapter.id 必须连续递增，硬规则校验会检查这一点。
+        </div>
+      </div>
+    </details>
+
+    <!-- Scene -->
+    <details class="schema-card">
+      <summary>Scene &mdash; 场景</summary>
+      <div class="card-body">
+        <table class="field-table">
+          <thead>
+            <tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="field-name">id</td><td class="field-type">int</td>
+              <td><span class="required-badge">必填</span></td>
+              <td class="field-desc">场景序号（章内唯一）</td>
+            </tr>
+            <tr>
+              <td class="field-name">timeline_type</td><td class="field-type">str</td>
+              <td><span class="optional-badge">可选</span></td>
+              <td class="field-desc">
+                时间线类型：
+                <span class="enum-tag">present</span>
+                <span class="enum-tag">flashback</span>
+                <span class="enum-tag">flashforward</span>
+                <span class="field-note">默认 present</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="field-name">slug</td><td class="field-type">str</td>
+              <td><span class="required-badge">必填</span></td>
+              <td class="field-desc">
+                好莱坞格式 Slug，如 "INT. 咖啡馆 - 日"
+                <span class="field-note">格式：INT./EXT. 地点 - 日/夜/黄昏/黎明</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="field-name">setting</td><td class="field-type">Setting</td>
+              <td><span class="required-badge">必填</span></td>
+              <td class="field-desc">包含 location（地点）和 time_of_day（时段）</td>
+            </tr>
+            <tr>
+              <td class="field-name">scene_purpose</td><td class="field-type">str</td>
+              <td><span class="optional-badge">可选</span></td>
+              <td class="field-desc">
+                场景作用：
+                <span class="enum-tag">推动剧情</span>
+                <span class="enum-tag">揭示角色</span>
+                <span class="enum-tag">建立世界观</span>
+                <span class="enum-tag">制造冲突</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="field-name">characters_in_scene</td><td class="field-type">list[str]</td>
+              <td><span class="optional-badge">可选</span></td>
+              <td class="field-desc">出场角色 ID 列表</td>
+            </tr>
+            <tr>
+              <td class="field-name">beats</td><td class="field-type">list[Beat]</td>
+              <td><span class="optional-badge">可选</span></td>
+              <td class="field-desc">分镜列表（推荐）</td>
+            </tr>
+            <tr>
+              <td class="field-name">actions</td><td class="field-type">list[Action]</td>
+              <td><span class="optional-badge">可选</span></td>
+              <td class="field-desc">向后兼容：旧版动作描写</td>
+            </tr>
+            <tr>
+              <td class="field-name">dialogues</td><td class="field-type">list[Dialogue]</td>
+              <td><span class="optional-badge">可选</span></td>
+              <td class="field-desc">向后兼容：旧版对话块</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="rationale">
+          <strong>设计原因：</strong>过去 actions[] / dialogues[] 分离导致叙事流断裂。
+          beats[] 统一了所有叙事单元，按自然顺序排列，每个 Beat 标记其类型。
+          旧字段保留以确保降级兼容。
+        </div>
+      </div>
+    </details>
+
+    <!-- Beat -->
+    <details class="schema-card">
+      <summary>Beat &mdash; 分镜（最小叙事单元）</summary>
+      <div class="card-body">
+        <table class="field-table">
+          <thead>
+            <tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="field-name">id</td><td class="field-type">int</td>
+              <td><span class="required-badge">必填</span></td>
+              <td class="field-desc">分镜序号（场景内唯一，从 1 开始）</td>
+            </tr>
+            <tr>
+              <td class="field-name">type</td><td class="field-type">BeatType</td>
+              <td><span class="required-badge">必填</span></td>
+              <td class="field-desc">
+                分镜类型：
+                <span class="enum-tag">action</span> 动作 —
+                <span class="enum-tag">dialogue</span> 对白 —
+                <span class="enum-tag">narration</span> 旁白 —
+                <span class="enum-tag">transition</span> 转场
+              </td>
+            </tr>
+            <tr>
+              <td class="field-name">description</td><td class="field-type">str</td>
+              <td><span class="required-badge">必填</span></td>
+              <td class="field-desc">内容描述（动作描写 / 台词 / 旁白文本 / 转场说明）</td>
+            </tr>
+            <tr>
+              <td class="field-name">character</td><td class="field-type">str</td>
+              <td><span class="optional-badge">条件必填</span></td>
+              <td class="field-desc">
+                关联角色 ID。
+                <span class="field-note">action / dialogue 类型必填；narration / transition 可选</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="field-name">shot_suggestion</td><td class="field-type">ShotSuggestion</td>
+              <td><span class="optional-badge">可选</span></td>
+              <td class="field-desc">镜头与声音建议</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="rationale">
+          <strong>设计原因：</strong>Beat 是 Hollywood 剧本的标准最小单元。
+          每个 Beat 对应一个独立的叙事动作——这种粒度让导演/摄影师可直接据此规划实拍方案。
+          action/dialogue Beat 必须有 character 字段，硬规则校验会强制执行。
+        </div>
+      </div>
+    </details>
+
+    <!-- ShotSuggestion -->
+    <details class="schema-card">
+      <summary>ShotSuggestion &mdash; 分镜提示</summary>
+      <div class="card-body">
+        <table class="field-table">
+          <thead>
+            <tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="field-name">camera_hint</td><td class="field-type">str</td>
+              <td><span class="optional-badge">可选</span></td>
+              <td class="field-desc">
+                镜头建议：
+                <span class="enum-tag">远景</span>
+                <span class="enum-tag">中景</span>
+                <span class="enum-tag">近景</span>
+                <span class="enum-tag">特写</span>
+                <span class="enum-tag">过肩</span>
+                <span class="enum-tag">俯拍</span>
+                <span class="enum-tag">跟拍</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="field-name">sound_hint</td><td class="field-type">str</td>
+              <td><span class="optional-badge">可选</span></td>
+              <td class="field-desc">
+                声音建议：
+                <span class="enum-tag">配乐</span>
+                <span class="enum-tag">音效</span>
+                <span class="enum-tag">环境音</span>
+                <span class="enum-tag">静默</span>
+                <span class="enum-tag">人声</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="field-name">emotion</td><td class="field-type">str</td>
+              <td><span class="optional-badge">可选</span></td>
+              <td class="field-desc">
+                情绪基调：
+                <span class="enum-tag">紧张</span>
+                <span class="enum-tag">温馨</span>
+                <span class="enum-tag">悲伤</span>
+                <span class="enum-tag">激昂</span>
+                <span class="enum-tag">平静</span>
+                <span class="enum-tag">恐惧</span>
+                <span class="enum-tag">浪漫</span>
+                <span class="enum-tag">悬疑</span>
+                <span class="enum-tag">愤怒</span>
+                <span class="enum-tag">幽默</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="rationale">
+          <strong>设计原因：</strong>ShotSuggestion 是 AI 改编的核心增值点。
+          LLM 分析叙事内容后自动推断最佳镜头、声音和情绪，
+          为摄影师/导演提供起点参考，而非替代专业判断。
+          三个字段均为可选，不强制生成。
+        </div>
+      </div>
+    </details>
+
+    <!-- Character -->
+    <details class="schema-card">
+      <summary>Character &mdash; 角色</summary>
+      <div class="card-body">
+        <table class="field-table">
+          <thead>
+            <tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="field-name">id</td><td class="field-type">str</td>
+              <td><span class="required-badge">必填</span></td>
+              <td class="field-desc">角色唯一 ID（英文/拼音，如 zhang_san）</td>
+            </tr>
+            <tr>
+              <td class="field-name">name</td><td class="field-type">str</td>
+              <td><span class="required-badge">必填</span></td>
+              <td class="field-desc">角色名（中文/英文）</td>
+            </tr>
+            <tr>
+              <td class="field-name">age_range</td><td class="field-type">str</td>
+              <td><span class="optional-badge">可选</span></td>
+              <td class="field-desc">年龄区间，如 "25-35"</td>
+            </tr>
+            <tr>
+              <td class="field-name">description</td><td class="field-type">str</td>
+              <td><span class="required-badge">必填</span></td>
+              <td class="field-desc">角色描述（外貌/性格/背景）</td>
+            </tr>
+            <tr>
+              <td class="field-name">importance_score</td><td class="field-type">float</td>
+              <td><span class="optional-badge">可选</span></td>
+              <td class="field-desc">重要度评分 0-1</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- YAML 示例 -->
+    <details class="schema-card" open>
+      <summary>完整 YAML 示例</summary>
+      <div class="card-body">
+        <div style="margin-bottom:12px;display:flex;gap:8px;">
+          <button class="btn-hero primary" onclick="copySchema()">Copy</button>
+          <button class="btn-hero" onclick="downloadSchema()">Download .yaml</button>
+        </div>
+        <div class="yaml-sample" id="yaml-sample"><span class="comment"># ============================================================</span>
+<span class="comment"># 小说转剧本 — YAML Schema v1.0</span>
+<span class="comment"># Script → Chapter → Scene → Beat 四级层级</span>
+<span class="comment"># ============================================================</span>
+
+<span class="key">version</span>: <span class="val">"1.0"</span>
+
+<span class="key">metadata</span>:
+  <span class="key">title</span>: <span class="val">"江湖夜雨"</span>
+  <span class="key">author</span>: <span class="val">"未知"</span>
+  <span class="key">adapted_by</span>: <span class="val">"Novel to Screenplay AI"</span>
+  <span class="key">logline</span>: <span class="val">"少年为父寻仇，却在真相面前选择了宽恕。"</span>
+  <span class="key">genre</span>: <span class="val">"剧情"</span>
+
+<span class="key">characters</span>:
+  - <span class="key">id</span>: <span class="val">"li_xun"</span>
+    <span class="key">name</span>: <span class="val">"李寻"</span>
+    <span class="key">age_range</span>: <span class="val">"20-25"</span>
+    <span class="key">description</span>: <span class="val">"青年剑客，为父复仇踏上江湖路"</span>
+    <span class="key">importance_score</span>: <span class="val">1.0</span>
+
+  - <span class="key">id</span>: <span class="val">"liu_ruyan"</span>
+    <span class="key">name</span>: <span class="val">"柳如烟"</span>
+    <span class="key">age_range</span>: <span class="val">"30-35"</span>
+    <span class="key">description</span>: <span class="val">"明月楼楼主，武功高深莫测"</span>
+    <span class="key">importance_score</span>: <span class="val">0.95</span>
+
+<span class="key">chapters</span>:
+  - <span class="key">id</span>: <span class="val">1</span>
+    <span class="key">title</span>: <span class="val">"第一章 客栈醒来"</span>
+    <span class="key">summary</span>: <span class="val">"李寻在客栈中回忆起三年前的灭门大火，决定前往江州寻仇。"</span>
+    <span class="key">scenes</span>:
+      - <span class="key">id</span>: <span class="val">1</span>
+        <span class="key">timeline_type</span>: <span class="val">"present"</span>
+        <span class="key">slug</span>: <span class="val">"INT. 客栈二楼 - 黎明"</span>
+        <span class="key">setting</span>:
+          <span class="key">location</span>: <span class="val">"客栈二楼"</span>
+          <span class="key">time_of_day</span>: <span class="val">"黎明"</span>
+        <span class="key">scene_purpose</span>: <span class="val">"揭示角色"</span>
+        <span class="key">characters_in_scene</span>:
+          - <span class="val">"li_xun"</span>
+        <span class="key">beats</span>:
+          - <span class="key">id</span>: <span class="val">1</span>
+            <span class="key">type</span>: <span class="val">"action"</span>
+            <span class="key">description</span>: <span class="val">"李寻在客栈床上惊醒，额头沁出细汗"</span>
+            <span class="key">character</span>: <span class="val">"li_xun"</span>
+            <span class="key">shot_suggestion</span>:
+              <span class="key">camera_hint</span>: <span class="val">"近景"</span>
+              <span class="key">sound_hint</span>: <span class="val">"环境音"</span>
+              <span class="key">emotion</span>: <span class="val">"紧张"</span>
+
+          - <span class="key">id</span>: <span class="val">2</span>
+            <span class="key">type</span>: <span class="val">"narration"</span>
+            <span class="key">description</span>: <span class="val">"三年前的大火画面闪回：书房烈焰，书架倒塌，黑影闪过窗边"</span>
+            <span class="key">shot_suggestion</span>:
+              <span class="key">camera_hint</span>: <span class="val">"特写"</span>
+              <span class="key">sound_hint</span>: <span class="val">"音效"</span>
+              <span class="key">emotion</span>: <span class="val">"悲伤"</span>
+
+          - <span class="key">id</span>: <span class="val">3</span>
+            <span class="key">type</span>: <span class="val">"action"</span>
+            <span class="key">description</span>: <span class="val">"李寻握紧拳头，拿起长剑推门而出"</span>
+            <span class="key">character</span>: <span class="val">"li_xun"</span>
+            <span class="key">shot_suggestion</span>:
+              <span class="key">camera_hint</span>: <span class="val">"中景"</span>
+              <span class="key">sound_hint</span>: <span class="val">"环境音"</span>
+              <span class="key">emotion</span>: <span class="val">"激昂"</span>
+
+      - <span class="key">id</span>: <span class="val">2</span>
+        <span class="key">timeline_type</span>: <span class="val">"present"</span>
+        <span class="key">slug</span>: <span class="val">"INT. 客栈柜台 - 清晨"</span>
+        <span class="key">setting</span>:
+          <span class="key">location</span>: <span class="val">"客栈柜台"</span>
+          <span class="key">time_of_day</span>: <span class="val">"清晨"</span>
+        <span class="key">scene_purpose</span>: <span class="val">"推动剧情"</span>
+        <span class="key">characters_in_scene</span>:
+          - <span class="val">"li_xun"</span>
+        <span class="key">beats</span>:
+          - <span class="key">id</span>: <span class="val">1</span>
+            <span class="key">type</span>: <span class="val">"dialogue"</span>
+            <span class="key">description</span>: <span class="val">"老板，结账。"</span>
+            <span class="key">character</span>: <span class="val">"li_xun"</span>
+            <span class="key">shot_suggestion</span>:
+              <span class="key">camera_hint</span>: <span class="val">"过肩"</span>
+              <span class="key">sound_hint</span>: <span class="val">"人声"</span>
+              <span class="key">emotion</span>: <span class="val">"平静"</span>
+
+          - <span class="key">id</span>: <span class="val">2</span>
+            <span class="key">type</span>: <span class="val">"dialogue"</span>
+            <span class="key">description</span>: <span class="val">"这、这么早就走？"</span>
+            <span class="key">character</span>: <span class="val">"innkeeper"</span>
+            <span class="key">shot_suggestion</span>:
+              <span class="key">camera_hint</span>: <span class="val">"近景"</span>
+              <span class="key">sound_hint</span>: <span class="val">"人声"</span>
+              <span class="key">emotion</span>: <span class="val">"平静"</span>
+
+          - <span class="key">id</span>: <span class="val">3</span>
+            <span class="key">type</span>: <span class="val">"transition"</span>
+            <span class="key">description</span>: <span class="val">"李寻离开客栈，前往江州"</span>
+            <span class="key">shot_suggestion</span>:
+              <span class="key">camera_hint</span>: <span class="val">"远景"</span>
+              <span class="key">sound_hint</span>: <span class="val">"配乐"</span>
+              <span class="key">emotion</span>: <span class="val">"激昂"</span>
+
+<span class="comment"># ============================================================</span>
+<span class="comment"># 字段说明速查</span>
+<span class="comment"># ============================================================</span>
+<span class="comment"># Script         → version, metadata, characters, chapters[], scenes[]</span>
+<span class="comment"># ScriptMetadata → title, author, adapted_by, logline, genre, page_count</span>
+<span class="comment"># Chapter        → id, title, summary, scenes[]</span>
+<span class="comment"># Scene          → id, timeline_type, slug, setting, scene_purpose,</span>
+<span class="comment">#                  characters_in_scene[], beats[], actions[], dialogues[]</span>
+<span class="comment"># Beat           → id, type, description, character, shot_suggestion</span>
+<span class="comment"># ShotSuggestion → camera_hint, sound_hint, emotion</span>
+<span class="comment"># Character      → id, name, age_range, description, importance_score</span>
+<span class="comment"># BeatType       → action | dialogue | narration | transition</span>
+<span class="comment"># timeline_type  → present | flashback | flashforward</span>
+<span class="comment"># slug format    → INT./EXT. 地点 - 日/夜/黄昏/黎明</span>
+</div>
+      </div>
+    </details>
+
+  </div>
+
+  <footer>
+    Powered by DeepSeek &middot; FastAPI &middot; Pydantic
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // The full YAML sample text (plain, no HTML tags)
+    const SCHEMA_YAML = `# ============================================================
+# 小说转剧本 — YAML Schema v1.0
+# Script -> Chapter -> Scene -> Beat 四级层级
+# ============================================================
+
+version: "1.0"
+
+metadata:
+  title: "江湖夜雨"
+  author: "未知"
+  adapted_by: "Novel to Screenplay AI"
+  logline: "少年为父寻仇，却在真相面前选择了宽恕。"
+  genre: "剧情"
+
+characters:
+  - id: "li_xun"
+    name: "李寻"
+    age_range: "20-25"
+    description: "青年剑客，为父复仇踏上江湖路"
+    importance_score: 1.0
+
+  - id: "liu_ruyan"
+    name: "柳如烟"
+    age_range: "30-35"
+    description: "明月楼楼主，武功高深莫测"
+    importance_score: 0.95
+
+chapters:
+  - id: 1
+    title: "第一章 客栈醒来"
+    summary: "李寻在客栈中回忆起三年前的灭门大火，决定前往江州寻仇。"
+    scenes:
+      - id: 1
+        timeline_type: "present"
+        slug: "INT. 客栈二楼 - 黎明"
+        setting:
+          location: "客栈二楼"
+          time_of_day: "黎明"
+        scene_purpose: "揭示角色"
+        characters_in_scene:
+          - "li_xun"
+        beats:
+          - id: 1
+            type: "action"
+            description: "李寻在客栈床上惊醒，额头沁出细汗"
+            character: "li_xun"
+            shot_suggestion:
+              camera_hint: "近景"
+              sound_hint: "环境音"
+              emotion: "紧张"
+
+          - id: 2
+            type: "narration"
+            description: "三年前的大火画面闪回：书房烈焰，书架倒塌，黑影闪过窗边"
+            shot_suggestion:
+              camera_hint: "特写"
+              sound_hint: "音效"
+              emotion: "悲伤"
+
+          - id: 3
+            type: "action"
+            description: "李寻握紧拳头，拿起长剑推门而出"
+            character: "li_xun"
+            shot_suggestion:
+              camera_hint: "中景"
+              sound_hint: "环境音"
+              emotion: "激昂"
+
+      - id: 2
+        timeline_type: "present"
+        slug: "INT. 客栈柜台 - 清晨"
+        setting:
+          location: "客栈柜台"
+          time_of_day: "清晨"
+        scene_purpose: "推动剧情"
+        characters_in_scene:
+          - "li_xun"
+        beats:
+          - id: 1
+            type: "dialogue"
+            description: "老板，结账。"
+            character: "li_xun"
+            shot_suggestion:
+              camera_hint: "过肩"
+              sound_hint: "人声"
+              emotion: "平静"
+
+          - id: 2
+            type: "dialogue"
+            description: "这、这么早就走？"
+            character: "innkeeper"
+            shot_suggestion:
+              camera_hint: "近景"
+              sound_hint: "人声"
+              emotion: "平静"
+
+          - id: 3
+            type: "transition"
+            description: "李寻离开客栈，前往江州"
+            shot_suggestion:
+              camera_hint: "远景"
+              sound_hint: "配乐"
+              emotion: "激昂"
+
+# ============================================================
+# 字段说明速查
+# ============================================================
+# Script         -> version, metadata, characters, chapters[], scenes[]
+# ScriptMetadata -> title, author, adapted_by, logline, genre, page_count
+# Chapter        -> id, title, summary, scenes[]
+# Scene          -> id, timeline_type, slug, setting, scene_purpose,
+#                   characters_in_scene[], beats[], actions[], dialogues[]
+# Beat           -> id, type, description, character, shot_suggestion
+# ShotSuggestion -> camera_hint, sound_hint, emotion
+# Character      -> id, name, age_range, description, importance_score
+# BeatType       -> action | dialogue | narration | transition
+# timeline_type  -> present | flashback | flashforward
+# slug format    -> INT./EXT. 地点 - 日/夜/黄昏/黎明
+`;
+
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      setTimeout(function () { el.classList.remove('show'); }, 1800);
+    }
+
+    function copySchema() {
+      navigator.clipboard.writeText(SCHEMA_YAML).then(function () {
+        showToast('Schema YAML copied to clipboard');
+      }).catch(function () {
+        showToast('Copy failed. Please select text manually.');
+      });
+    }
+
+    function downloadSchema() {
+      var blob = new Blob([SCHEMA_YAML], { type: 'text/plain;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'screenplay-schema-v1.0.yaml';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  </script>
+
+</body>
+</html>
