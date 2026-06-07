@@ -1,9 +1,11 @@
 """FastAPI 主程序：小说转剧本 API 服务。"""
 
+import os
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .models import Script
@@ -25,6 +27,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 前端静态文件
+FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
+if os.path.isdir(FRONTEND_DIR):
+    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="frontend")
 
 # ─── 请求/响应模型 ──────────────────────────────────────────────
 
@@ -59,12 +65,11 @@ class ConvertResponse(BaseModel):
 
 @app.get("/")
 async def root():
-    """健康检查"""
-    return {
-        "service": "小说转剧本 API",
-        "version": "1.0.0",
-        "status": "running",
-    }
+    """前端主页"""
+    index_path = os.path.join(FRONTEND_DIR, "index.html")
+    if os.path.isfile(index_path):
+        return FileResponse(index_path)
+    return {"service": "小说转剧本 API", "version": "1.0.0", "status": "running"}
 
 
 @app.post("/convert", response_model=ConvertResponse)
